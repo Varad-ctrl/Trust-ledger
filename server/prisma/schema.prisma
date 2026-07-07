@@ -1,0 +1,187 @@
+// FinCore — Prisma Schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountType {
+  SAVINGS
+  CHECKING
+  CURRENT
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  TRANSFER
+  DEPOSIT
+  WITHDRAWAL
+  REVERSAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  INR
+}
+
+// ─────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(USER)
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  accounts     Account[]
+  sessions     Session[]
+  beneficiaries Beneficiary[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// ACCOUNTS
+// ─────────────────────────────────────────
+
+model Account {
+  id            String        @id @default(uuid())
+  userId        String        @map("user_id")
+  accountNumber String        @unique @map("account_number")
+  accountType   AccountType   @map("account_type")
+  balance       Decimal       @default(0) @db.Decimal(18, 2)
+  currency      Currency      @default(USD)
+  status        AccountStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentTransactions  Transaction[] @relation("SenderAccount")
+  receivedTransactions Transaction[] @relation("ReceiverAccount")
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+// ─────────────────────────────────────────
+// TRANSACTIONS
+// ─────────────────────────────────────────
+
+model Transaction {
+  id              String            @id @default(uuid())
+  senderAccountId String?           @map("sender_account_id")
+  receiverAccountId String?         @map("receiver_account_id")
+  amount          Decimal           @db.Decimal(18, 2)
+  transactionType TransactionType   @map("transaction_type")
+  description     String?
+  status          TransactionStatus @default(PENDING)
+  referenceNumber String            @unique @map("reference_number")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  senderAccount   Account?  @relation("SenderAccount", fields: [senderAccountId], references: [id])
+  receiverAccount Account?  @relation("ReceiverAccount", fields: [receiverAccountId], references: [id])
+
+  @@index([senderAccountId])
+  @@index([receiverAccountId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// ─────────────────────────────────────────
+// BENEFICIARIES
+// ─────────────────────────────────────────
+
+model Beneficiary {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  beneficiaryName String   @map("beneficiary_name")
+  accountNumber   String   @map("account_number")
+  bankName        String   @map("bank_name")
+  ifscCode        String?  @map("ifsc_code")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("beneficiaries")
+}
+
+// ─────────────────────────────────────────
+// SESSIONS (Refresh tokens)
+// ─────────────────────────────────────────
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  refreshToken String   @unique @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────
+// AUDIT LOGS
+// ─────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,882 @@
+{
+  "info": {
+    "name": "FinCore API — Phase 2",
+    "description": "Complete authentication and banking API. Run Login first — tokens are auto-saved as collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "accountId",
+      "value": ""
+    },
+    {
+      "key": "userAccessToken",
+      "value": ""
+    },
+    {
+      "key": "adminTargetUserId",
+      "value": ""
+    },
+    {
+      "key": "adminTargetAccountId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "  pm.collectionVariables.set('userId',       d.user.id);",
+                  "  pm.test('Registration succeeded', () => pm.response.to.have.status(201));",
+                  "  pm.test('Access token issued',    () => pm.expect(d.accessToken).to.be.a('string'));",
+                  "  pm.test('Default account created',() => pm.expect(d.account.accountNumber).to.match(/^FC/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"test@fincore.io\",\n  \"phone\": \"+91-9876543210\",\n  \"password\": \"Test@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register — duplicate email (should 409)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"test@fincore.io\",\n  \"password\": \"Test@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register — weak password (should 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Weak\",\n  \"lastName\": \"Pass\",\n  \"email\": \"weak@fincore.io\",\n  \"password\": \"password\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login — Deep Patel (seeded user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "  pm.collectionVariables.set('userId',       d.user.id);",
+                  "  pm.test('Login succeeded',      () => pm.response.to.have.status(200));",
+                  "  pm.test('Tokens issued',         () => pm.expect(d.accessToken).to.be.a('string'));",
+                  "  pm.test('User role is USER',     () => pm.expect(d.user.role).to.equal('USER'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"deep@fincore.io\",\n  \"password\": \"Demo@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login — Admin User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "  pm.test('Role is ADMIN', () => pm.expect(d.user.role).to.equal('ADMIN'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@fincore.io\",\n  \"password\": \"Demo@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login — wrong password (should 401)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"deep@fincore.io\",\n  \"password\": \"WrongPassword1!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const d = pm.response.json().data;",
+                  "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "  pm.test('New tokens issued', () => pm.expect(d.accessToken).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/refresh",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get active sessions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/sessions",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Logout (current session)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout all devices",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout-all",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Profile",
+      "item": [
+        {
+          "name": "Get my profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Profile returned', () => pm.response.to.have.status(200));",
+                  "pm.test('No password hash', () => pm.expect(pm.response.json().data.passwordHash).to.be.undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/profile",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/users/profile",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Deep\",\n  \"lastName\": \"Patel\",\n  \"phone\": \"+91-9000000099\"\n}"
+            }
+          }
+        },
+        {
+          "name": "No auth header (should 401)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏦 Accounts",
+      "item": [
+        {
+          "name": "Get my accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const accounts = pm.response.json().data;",
+                  "  if (accounts.length) pm.collectionVariables.set('accountId', accounts[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/accounts",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get account by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/accounts/{{accountId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create new account",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/accounts",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountType\": \"CURRENT\",\n  \"currency\": \"INR\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💸 Transactions",
+      "item": [
+        {
+          "name": "Get my transactions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/transactions?page=1&limit=10",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Transfer funds (fill account IDs first)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/transactions/transfer",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderAccountId\":   \"REPLACE_WITH_SENDER_ID\",\n  \"receiverAccountId\": \"REPLACE_WITH_RECEIVER_ID\",\n  \"amount\": 500,\n  \"description\": \"Test transfer\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Beneficiaries",
+      "item": [
+        {
+          "name": "Get my beneficiaries",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/beneficiaries",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Add beneficiary",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/beneficiaries",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiaryName\": \"Priya Yadav\",\n  \"accountNumber\":   \"FC87654321\",\n  \"bankName\":        \"FinCore Bank\",\n  \"ifscCode\":        \"FINC0000001\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔑 RBAC — Admin Panel",
+      "item": [
+        {
+          "name": "Step 1 ► Login as USER (Deep Patel)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('userAccessToken',   d.accessToken);",
+                  "pm.collectionVariables.set('userRefreshToken',  d.refreshToken);",
+                  "pm.test('Logged in as USER', () => pm.expect(d.user.role).to.equal('USER'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"deep@fincore.io\",\n  \"password\": \"Demo@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Step 2 ► USER hits /admin/dashboard → expect 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 Forbidden for USER', () => pm.response.to.have.status(403));",
+                  "pm.test('Error message correct',  () => pm.expect(pm.response.json().success).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/dashboard",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 3 ► USER hits /admin/users → expect 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 Forbidden for USER', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/users",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 4 ► Login as ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('accessToken',  d.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "pm.test('Logged in as ADMIN', () => pm.expect(d.user.role).to.equal('ADMIN'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@fincore.io\",\n  \"password\": \"Demo@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Step 5 ► ADMIN — Dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK for ADMIN',       () => pm.response.to.have.status(200));",
+                  "pm.test('Has users stats',        () => pm.expect(pm.response.json().data).to.have.property('users'));",
+                  "pm.test('Has accounts stats',     () => pm.expect(pm.response.json().data).to.have.property('accounts'));",
+                  "pm.test('Has transaction stats',  () => pm.expect(pm.response.json().data).to.have.property('transactions'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/dashboard",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 6 ► ADMIN — List all users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',               () => pm.response.to.have.status(200));",
+                  "pm.test('Pagination present',   () => pm.expect(pm.response.json().data).to.have.property('pagination'));",
+                  "pm.test('No passwordHash',      () => {",
+                  "  const users = pm.response.json().data.data;",
+                  "  users.forEach(u => pm.expect(u.passwordHash).to.be.undefined);",
+                  "});",
+                  "if (pm.response.json().data.data.length) {",
+                  "  pm.collectionVariables.set('adminTargetUserId', pm.response.json().data.data.find(u => u.role === 'USER')?.id || '');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&limit=10",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 7 ► ADMIN — Filter users by role=USER",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?role=USER",
+              "query": [
+                {
+                  "key": "role",
+                  "value": "USER"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 8 ► ADMIN — Get single user with accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',           () => pm.response.to.have.status(200));",
+                  "pm.test('Has accounts array', () => pm.expect(pm.response.json().data).to.have.property('accounts'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/users/{{adminTargetUserId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 9 ► ADMIN — List all accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.json().data.data.length) {",
+                  "  pm.collectionVariables.set('adminTargetAccountId', pm.response.json().data.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/accounts",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 10 ► ADMIN — Freeze account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',            () => pm.response.to.have.status(200));",
+                  "pm.test('Status is FROZEN',  () => pm.expect(pm.response.json().data.status).to.equal('FROZEN'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/accounts/{{adminTargetAccountId}}/freeze",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 11 ► ADMIN — Freeze again → expect 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 already frozen', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/accounts/{{adminTargetAccountId}}/freeze",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 12 ► ADMIN — Unfreeze account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',           () => pm.response.to.have.status(200));",
+                  "pm.test('Status is ACTIVE', () => pm.expect(pm.response.json().data.status).to.equal('ACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/accounts/{{adminTargetAccountId}}/unfreeze",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 13 ► ADMIN — List audit logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',              () => pm.response.to.have.status(200));",
+                  "pm.test('Pagination present',  () => pm.expect(pm.response.json().data).to.have.property('pagination'));",
+                  "pm.test('Freeze action logged',() => {",
+                  "  const logs = pm.response.json().data.data;",
+                  "  const freeze = logs.find(l => l.action === 'ADMIN_FREEZE_ACCOUNT');",
+                  "  pm.expect(freeze).to.not.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/audit-logs",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 14 ► ADMIN — Filter audit logs by action",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/audit-logs?action=LOGIN",
+              "query": [
+                {
+                  "key": "action",
+                  "value": "LOGIN"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Step 15 ► No token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 without token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/dashboard"
+          }
+        }
+      ]
+    }
+  ]
+}
