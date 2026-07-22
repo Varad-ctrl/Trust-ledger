@@ -10,16 +10,16 @@
  *   - Never touches req/res (that's the controller's job)
  */
 
-const { v4: uuidv4 } = require('uuid');
-const prisma = require('../config/prisma');
-const adminRepository = require('../repositories/admin.repository');
+const { v4: uuidv4 }    = require('uuid');
+const prisma             = require('../config/prisma');
+const adminRepository    = require('../repositories/admin.repository');
 const { MESSAGES, AUDIT_ACTIONS } = require('../constants');
-const logger = require('../config/logger');
+const logger             = require('../config/logger');
 
 // ─── Pagination helper ───────────────────────────────────────────────────────
 // Shared across every list endpoint. Returns { skip, take, page, limit }.
 const paginate = (page, limit) => {
-  const p = Math.max(1, parseInt(page, 10) || 1);
+  const p = Math.max(1, parseInt(page,  10) || 1);
   const l = Math.min(100, Math.max(1, parseInt(limit, 10) || 20)); // cap at 100
   return { skip: (p - 1) * l, take: l, page: p, limit: l };
 };
@@ -32,9 +32,9 @@ const listResponse = (data, total, page, limit) => ({
     total,
     page,
     limit,
-    pages: Math.ceil(total / limit),
-    hasNext: page * limit < total,
-    hasPrev: page > 1,
+    pages:    Math.ceil(total / limit),
+    hasNext:  page * limit < total,
+    hasPrev:  page > 1,
   },
 });
 
@@ -52,9 +52,9 @@ const listUsers = async ({ page, limit, role, isVerified } = {}) => {
   const { skip, take, page: p, limit: l } = paginate(page, limit);
 
   // Parse isVerified from query string ('true'/'false') to boolean
-  const isVerifiedFilter = isVerified === 'true' ? true
-    : isVerified === 'false' ? false
-      : undefined;
+  const isVerifiedFilter = isVerified === 'true'  ? true
+                         : isVerified === 'false' ? false
+                         : undefined;
 
   const [users, total] = await Promise.all([
     adminRepository.findAllUsers({ skip, take, role, isVerified: isVerifiedFilter }),
@@ -101,17 +101,17 @@ const freezeAccount = async (accountId, adminId, meta = {}) => {
 
   await prisma.auditLog.create({
     data: {
-      id: uuidv4(),
-      userId: adminId,
-      action: AUDIT_ACTIONS.ADMIN_FREEZE_ACCOUNT,
-      ipAddress: meta.ip || null,
+      id:        uuidv4(),
+      userId:    adminId,
+      action:    AUDIT_ACTIONS.ADMIN_FREEZE_ACCOUNT,
+      ipAddress: meta.ip        || null,
       userAgent: meta.userAgent || null,
       metadata: {
         accountId,
         accountNumber: account.accountNumber,
-        accountOwner: account.user?.email,
+        accountOwner:  account.user?.email,
         previousStatus: 'ACTIVE',
-        newStatus: 'FROZEN',
+        newStatus:      'FROZEN',
       },
     },
   });
@@ -142,17 +142,17 @@ const unfreezeAccount = async (accountId, adminId, meta = {}) => {
 
   await prisma.auditLog.create({
     data: {
-      id: uuidv4(),
-      userId: adminId,
-      action: AUDIT_ACTIONS.ADMIN_UNFREEZE_ACCOUNT,
-      ipAddress: meta.ip || null,
+      id:        uuidv4(),
+      userId:    adminId,
+      action:    AUDIT_ACTIONS.ADMIN_UNFREEZE_ACCOUNT,
+      ipAddress: meta.ip        || null,
       userAgent: meta.userAgent || null,
       metadata: {
         accountId,
         accountNumber: account.accountNumber,
-        accountOwner: account.user?.email,
+        accountOwner:  account.user?.email,
         previousStatus: 'FROZEN',
-        newStatus: 'ACTIVE',
+        newStatus:      'ACTIVE',
       },
     },
   });

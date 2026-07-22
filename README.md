@@ -1,198 +1,112 @@
-# FinCore — Enterprise Digital Banking Platform
+# FinCore v1.1 — Enterprise Digital Banking Platform
 
-> A production-style banking application built with React + Vite, Node.js/Express, PostgreSQL, and Prisma.
+Full-stack banking application with 10 Phase 4.1 enhancements.
 
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React + Vite |
-| Backend | Node.js + Express |
-| Database | PostgreSQL |
-| ORM | Prisma |
-| Auth | JWT (access + refresh tokens) + bcrypt |
-| Validation | Zod |
-| Logging | Winston + Morgan |
-| Security | Helmet, express-rate-limit, CORS |
-
----
-
-## Prerequisites
-
-- Node.js 18+
-- PostgreSQL 14+ running locally (or Docker: `docker run -e POSTGRES_PASSWORD=password -p 5432:5432 postgres`)
-- Git
+**Stack:** React 19 + Vite · Node.js/Express · PostgreSQL · Prisma ORM
 
 ---
 
 ## Quick Start
 
-### 1. Clone and install
+### Prerequisites
+Node.js 18+  ·  PostgreSQL 14+
+
+### 1 — Backend
 ```bash
-git clone <your-repo-url>
-cd fincore/server
+cd server
+cp .env.example .env          # fill DATABASE_URL + JWT secrets
 npm install
+npx prisma migrate dev --name phase41
+node prisma/seed.js
+npm run dev                   # → http://localhost:5000
 ```
 
-### 2. Configure environment
+### 2 — Frontend (new terminal)
 ```bash
-cp .env.example .env
-# Edit .env — set your DATABASE_URL and JWT secrets
-```
-
-### 3. Create the database
-```bash
-createdb fincore_db
-# or via psql: CREATE DATABASE fincore_db;
-```
-
-### 4. Run Prisma migrations
-```bash
-npm run db:migrate       # creates tables
-npm run db:seed          # seeds demo data
-```
-
-### 5. Start the server
-```bash
-npm run dev              # http://localhost:5000
-```
-
-### Demo credentials
-| Role | Email | Password |
-|------|-------|----------|
-| User | alex@fincore.io | Demo@1234 |
-| Admin | admin@fincore.io | Admin@1234 |
-
----
-
-## Project Structure
-
-```
-fincore/
-├── server/
-│   ├── prisma/
-│   │   ├── schema.prisma       # Data model — single source of truth
-│   │   ├── seed.js             # Demo data seeder
-│   │   └── migrations/         # Auto-generated SQL migrations
-│   ├── src/
-│   │   ├── config/
-│   │   │   ├── prisma.js       # Prisma client singleton
-│   │   │   └── logger.js       # Winston logger
-│   │   ├── constants/
-│   │   │   └── index.js        # HTTP codes, messages, roles
-│   │   ├── controllers/        # Request/response handling only
-│   │   │   ├── auth.controller.js
-│   │   │   ├── account.controller.js
-│   │   │   ├── transaction.controller.js
-│   │   │   ├── beneficiary.controller.js
-│   │   │   └── user.controller.js
-│   │   ├── middleware/
-│   │   │   ├── authenticate.js # JWT verification
-│   │   │   ├── authorize.js    # Role-based access control
-│   │   │   ├── validate.js     # Zod schema validation
-│   │   │   ├── auditLog.js     # Audit trail writer
-│   │   │   └── errorHandler.js # Global error handling
-│   │   ├── repositories/       # Data access layer (Prisma queries)
-│   │   │   ├── user.repository.js
-│   │   │   ├── account.repository.js
-│   │   │   ├── transaction.repository.js
-│   │   │   ├── session.repository.js
-│   │   │   └── beneficiary.repository.js
-│   │   ├── routes/             # Express routers
-│   │   │   ├── auth.routes.js
-│   │   │   ├── account.routes.js
-│   │   │   ├── transaction.routes.js
-│   │   │   ├── beneficiary.routes.js
-│   │   │   └── user.routes.js
-│   │   ├── services/           # Business logic layer
-│   │   │   ├── auth.service.js
-│   │   │   ├── account.service.js
-│   │   │   ├── transaction.service.js
-│   │   │   ├── beneficiary.service.js
-│   │   │   └── user.service.js
-│   │   ├── utils/
-│   │   │   ├── response.js     # Standardised API responses
-│   │   │   ├── token.js        # JWT helpers
-│   │   │   └── accountNumber.js
-│   │   ├── validations/        # Zod schemas
-│   │   │   ├── auth.validation.js
-│   │   │   └── transaction.validation.js
-│   │   ├── app.js              # Express app (middleware + routes)
-│   │   └── server.js           # Server entry + DB connect
-│   ├── .env.example
-│   └── package.json
-├── FinCore.postman_collection.json
-└── README.md
+cd client
+npm install
+npm run dev                   # → http://localhost:5173
 ```
 
 ---
 
-## API Reference
+## Demo Credentials
 
-All responses follow: `{ success: boolean, message: string, data?: any, errors?: any[] }`
-
-### Auth
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | /api/auth/register | — | Register new user |
-| POST | /api/auth/login | — | Login, returns tokens |
-| POST | /api/auth/refresh | — | Rotate refresh token |
-| POST | /api/auth/logout | Bearer | Invalidate session |
-
-### Accounts
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | /api/accounts | Bearer | List user's accounts |
-| GET | /api/accounts/:id | Bearer | Single account |
-| POST | /api/accounts | Bearer | Create account |
-
-### Transactions
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | /api/transactions/transfer | Bearer | Atomic fund transfer |
-| GET | /api/transactions | Bearer | Paginated history |
-| GET | /api/transactions/:id | Bearer | Single transaction |
-
-### Beneficiaries
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | /api/beneficiaries | Bearer | List beneficiaries |
-| POST | /api/beneficiaries | Bearer | Add beneficiary |
-| DELETE | /api/beneficiaries/:id | Bearer | Remove beneficiary |
-
-### Profile
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | /api/users/profile | Bearer | Get user profile |
-| PUT | /api/users/profile | Bearer | Update profile |
+| Role  | Email               | Password   | UPI ID               |
+|-------|---------------------|------------|----------------------|
+| User  | deep@fincore.io     | Demo@1234  | deep.patel@fincore   |
+| User  | priya@fincore.io    | Demo@1234  | priya.yadav@fincore  |
+| Admin | admin@fincore.io    | Demo@1234  | admin@fincore        |
 
 ---
 
-## Key Design Decisions
+## Phase 4.1 Enhancements
 
-### Atomic Transfers
-Money transfers use **Prisma interactive transactions** (`prisma.$transaction(async (tx) => {...})`).
-Both balance deductions and the transaction record either all succeed or all roll back. No partial states.
-
-### Refresh Token Rotation
-Every token refresh invalidates the old refresh token and issues a new one. Stolen tokens become useless after the legitimate user refreshes.
-
-### Layered Architecture
-```
-Request → Route → Middleware → Controller → Service → Repository → Prisma → PostgreSQL
-```
-Each layer has a single responsibility, making it easy to test, swap, or extend.
+| # | Enhancement | What was built |
+|---|-------------|----------------|
+| 1 | Smart Beneficiary Linking | `receiverAccountId` on Beneficiary — one-tap transfer to saved people |
+| 2 | Beneficiary Search | Live search by name or account number with clear button |
+| 3 | Favourite Beneficiaries | Star toggle — favourites sorted first in list and transfer dropdown |
+| 4 | Recent Beneficiaries | Quick-select chips on Transfer page — no searching needed |
+| 5 | Transfer Confirmation Modal | Review screen before money moves — amount, sender, receiver, note |
+| 6 | PDF Transaction Receipt | jsPDF branded A5 receipt downloaded instantly after every transfer |
+| 7 | Email Notifications | Nodemailer HTML emails on transfer, beneficiary add, profile update, scheduled, standing, UPI activate |
+| 8 | Scheduled Transfers | One-time future-dated transfer with node-cron auto-execution + cancel |
+| 9 | Standing Instructions | Recurring DAILY/WEEKLY/MONTHLY transfers with pause/resume/cancel |
+| 10 | UPI Simulation | `name@fincore` virtual payment address — activate, copy, lookup, transfer by UPI |
 
 ---
 
-## Development Roadmap
+## New API Endpoints (Phase 4.1)
 
-- [x] Phase 1: Database schema + Prisma setup
-- [x] Phase 2: Layered backend (auth, accounts, transactions, beneficiaries, profile)
-- [ ] Phase 3: React + Vite frontend
-- [ ] Phase 4: Containerise with Docker
-- [ ] Phase 5: Deploy on OpenShift
-- [ ] Phase 6: CI/CD with Tekton
-- [ ] Phase 7: Monitoring with Prometheus + Grafana
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET    | /api/beneficiaries?search= | Beneficiary search (E2) |
+| PATCH  | /api/beneficiaries/:id/favourite | Toggle favourite (E3) |
+| POST   | /api/scheduled | Create scheduled transfer (E8) |
+| GET    | /api/scheduled | List scheduled transfers (E8) |
+| PATCH  | /api/scheduled/:id/cancel | Cancel pending transfer (E8) |
+| POST   | /api/standing | Create standing instruction (E9) |
+| GET    | /api/standing | List standing instructions (E9) |
+| PATCH  | /api/standing/:id/pause | Pause instruction (E9) |
+| PATCH  | /api/standing/:id/resume | Resume instruction (E9) |
+| PATCH  | /api/standing/:id/cancel | Cancel instruction (E9) |
+| POST   | /api/upi/activate | Generate UPI ID (E10) |
+| GET    | /api/upi/me | Get my UPI ID (E10) |
+| GET    | /api/upi/resolve/:upiId | Look up any UPI ID (E10) |
+
+---
+
+## New Pages (Phase 4.1)
+
+| Route | Page | Enhancement |
+|-------|------|-------------|
+| /scheduled | Scheduled Transfers | E8 |
+| /standing  | Standing Instructions | E9 |
+| /upi       | UPI Management | E10 |
+
+---
+
+## Email Setup (Optional)
+
+Add to `server/.env`:
+```
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your@gmail.com
+EMAIL_PASS=your_app_password
+EMAIL_FROM="FinCore Bank <no-reply@fincore.io>"
+```
+
+If `EMAIL_USER` is not set, emails are logged to console — app works without SMTP.
+
+---
+
+## Cron Jobs (Auto-run)
+
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| Scheduled transfers | Every minute | Execute pending transfers whose `executeAt` has passed |
+| Standing instructions | Every hour | Execute due recurring transfers and advance `nextRunAt` |
+
+Both start automatically when the server boots.

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: varad-1021-dev
+
+data:
+  NODE_ENV: "production"
+  PORT: "5000"
+
+  CLIENT_URL: "https://YOUR_FRONTEND_ROUTE"
+
+  JWT_ACCESS_EXPIRES_IN: "15m"
+  JWT_REFRESH_EXPIRES_IN: "7d"
+
+  BCRYPT_ROUNDS: "12"
+
+  EMAIL_HOST: "smtp.gmail.com"
+  EMAIL_PORT: "587"
+  EMAIL_SECURE: "false"
+
+  EMAIL_FROM: "FinCore Bank <no-reply@fincore.io>"
+
+  GROQ_MODEL: "llama-3.3-70b-versatile"

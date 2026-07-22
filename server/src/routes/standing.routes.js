@@ -1,0 +1,12 @@
+'use strict';
+const express = require('express');
+const router = express.Router();
+const ctrl = require('../controllers/standing.controller');
+const authenticate = require('../middleware/authenticate');
+router.use(authenticate);
+router.post('/', ctrl.create);
+router.get('/', ctrl.getAll);
+router.patch('/:id/pause',  ctrl.pause);
+router.patch('/:id/resume', ctrl.resume);
+router.patch('/:id/cancel', ctrl.cancel);
+module.exports = router;

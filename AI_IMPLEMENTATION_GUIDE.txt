@@ -1,0 +1,327 @@
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║           FINCORE AI — IMPLEMENTATION GUIDE                                    ║
+║           Groq + Llama 3.3 70B Edition                                         ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+Version: Phase 5 — Groq Migration Complete
+Provider: Groq (groq-sdk) + Llama 3.3-70B-Versatile
+Date: 2025
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 1 — WHY WE MIGRATED FROM OPENAI TO GROQ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  GROQ ADVANTAGES:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  Free tier available at console.groq.com (no credit card)       │
+  │  3-5× faster inference than GPT-4o (hardware accelerated)       │
+  │  Llama 3.3-70B is open-source and extremely capable             │
+  │  Near-identical API to OpenAI — migration took ~30 lines        │
+  │  No vendor lock-in — one abstraction supports any provider      │
+  └─────────────────────────────────────────────────────────────────┘
+
+  COMPARISON:
+  ┌────────────────────┬──────────────────┬──────────────────┐
+  │                    │ OpenAI GPT-4o    │ Groq Llama 3.3   │
+  ├────────────────────┼──────────────────┼──────────────────┤
+  │ Free tier          │ No               │ Yes              │
+  │ Speed              │ ~2-4s per query  │ ~0.5-1s per query│
+  │ Quality            │ Excellent        │ Excellent        │
+  │ Tool calling       │ Native           │ Not used (intent)│
+  │ API format         │ OpenAI           │ OpenAI-compatible│
+  └────────────────────┴──────────────────┴──────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 2 — THE ARCHITECTURE CHANGE: FROM TOOL CALLING TO INTENT DETECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OLD ARCHITECTURE (OpenAI Tool Calling):
+  User → GPT decides which tool → We call DB → Results to GPT → Answer
+  Cost: 2 API calls per query (tool selection + response generation)
+
+NEW ARCHITECTURE (Intent Detection + Data Injection):
+  User → We detect intent (keyword regex) → We fetch DB data → 
+  Data + question sent to Groq → Groq formats answer
+  Cost: 1 API call per query
+
+THE FLOW IN DETAIL:
+
+  Step 1: User asks "Show transfers above ₹5000 this week"
+
+  Step 2: detectIntent() → returns 'SEARCH'
+          extractFilters() → returns { minAmount: 5000, days: 7 }
+          (This is pure JavaScript — no AI cost)
+
+  Step 3: We run Prisma query with those filters:
+          db.getRecentTransactions(userId, 20, { minAmount: 5000, days: 7 })
+          Real data returned from PostgreSQL.
+
+  Step 4: We build a structured prompt:
+          "DATA (from database — do not invent any other numbers):
+           MATCHING TRANSACTIONS: [real JSON data]
+           USER QUESTION: Show transfers above ₹5000 this week"
+
+  Step 5: Groq formats a clean response using ONLY the injected data.
+          It cannot hallucinate because the data is right there.
+
+WHY THIS IS BETTER:
+  - One API call instead of two (50% cheaper)
+  - Intent detection is instant (no network latency)
+  - AI is used only for what it's good at: formatting language
+  - Database logic stays in Node.js where it belongs
+  - Easier to debug (you can see exactly what data was fetched)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 3 — SETUP (5 MINUTES, FREE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Step 1: Go to https://console.groq.com
+  Step 2: Sign up (free — no credit card required)
+  Step 3: Click "API Keys" → "Create API Key"
+  Step 4: Copy the key (starts with gsk_)
+  Step 5: Add to server/.env:
+
+    GROQ_API_KEY=gsk_your_key_here
+    GROQ_MODEL=llama-3.3-70b-versatile
+
+  Step 6: Restart server — AI is now active.
+
+  FREE TIER LIMITS (as of 2025):
+    30 requests per minute
+    14,400 requests per day
+    Sufficient for development and demos
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 4 — FILES CHANGED IN THIS MIGRATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  FILE                        CHANGE           DETAILS
+  ─────────────────────────── ──────────────── ─────────────────────────────────
+  server/package.json         Modified         openai removed, groq-sdk added
+  server/.env.example         Modified         OPENAI_* → GROQ_*
+  server/src/services/        MAJOR REWRITE    Intent detection + Groq client
+    ai.service.js
+  server/src/controllers/     No change        Same interface
+    ai.controller.js
+  server/src/routes/          No change        Same endpoints
+    ai.routes.js
+  client/src/**               No change        Same frontend pages
+  Prisma schema               No change        Same database
+  All other backend files     No change        Auth, transfers, etc. unchanged
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 5 — HOW INTENT DETECTION WORKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  INTENT          TRIGGER KEYWORDS              DATA FETCHED
+  ─────────────── ───────────────────────────── ─────────────────────────────────
+  BALANCE         "balance", "how much have I"  All accounts + total
+  RECENT_TXN      "last N transactions"         Recent N transactions
+  SPENDING        "spent", "expense", "month"   Spending by period + comparison
+  TOP_RECIPIENTS  "who do I", "most transfers"  Top 5 recipients by count
+  SCHEDULED       "scheduled"                   All scheduled transfers
+  STANDING        "standing", "recurring"       All standing instructions
+  BENEFICIARIES   "beneficiary", "payee"        Saved beneficiaries
+  SEARCH          "above ₹X", "below ₹X"       Filtered transaction search
+  FRAUD           "fraud", "suspicious"         7-day fraud signal analysis
+  ADVISOR         "afford", "save", "advice"    Full financial overview
+  UPI             "upi"                         UPI ID data
+  GENERAL         (fallback)                    Balance + last 5 transactions
+
+  FILTER EXTRACTION (from natural language):
+    "above ₹5000"        → { minAmount: 5000 }
+    "below ₹10,000"      → { maxAmount: 10000 }
+    "last 7 days"        → { days: 7 }
+    "last 3 weeks"       → { days: 21 }
+    "last 5 transactions" → { limit: 5 }
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 6 — THE PROVIDER ABSTRACTION PATTERN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  All LLM calls go through the llm() wrapper function:
+
+    const llm = async (messages, options = {}) => {
+      if (!groq) return null;                    // graceful fallback
+      const res = await groq.chat.completions.create({
+        model:       MODEL,
+        messages,
+        temperature: options.temperature ?? 0.3,
+        max_tokens:  options.max_tokens  ?? 1024,
+      });
+      return res.choices[0].message.content.trim();
+    };
+
+  To switch to OpenAI tomorrow, change 3 lines:
+    - const Groq = require('groq-sdk');          → const OpenAI = require('openai');
+    - const groq = new Groq({ apiKey: ... });    → const groq = new OpenAI({ apiKey: ... });
+    - process.env.GROQ_API_KEY                   → process.env.OPENAI_API_KEY
+
+  To switch to Gemini:
+    Use the OpenAI-compatible endpoint Google provides.
+    Only the apiKey and base URL change.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 7 — THE 6 AI MODULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Module 1 — AI Chat Assistant         /api/ai/chat (POST)
+    Conversational interface. Detects intent, fetches data, asks Groq to format.
+
+  Module 2 — Spending Insights         /api/ai/insights (GET)
+    Month comparison, top recipients, AI-generated insight cards.
+
+  Module 3 — Fraud Detection           /api/ai/fraud (GET)
+    Pure database logic — no AI needed. Flags large transfers,
+    rapid sequences, and off-hours activity.
+
+  Module 4 — Natural Language Search   (inside /api/ai/chat)
+    "Show transfers above ₹5000 this week" → extractFilters() → DB query.
+
+  Module 5 — Financial Advisor         (inside /api/ai/chat)
+    "Can I afford ₹50,000?" → fetches full financial overview → Groq advises.
+
+  Module 6 — Smart Dashboard           /api/ai/smart-dashboard (GET)
+    Balance, spending, scheduled transfers, standing count, AI recommendation.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 8 — INTERVIEW QUESTIONS & MODEL ANSWERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Q: "Why did you choose Groq over OpenAI?"
+A: Free tier for development, 3-5x faster inference due to custom hardware (LPUs),
+   and Llama 3.3-70B is open-source so there's no vendor dependency.
+   The API is OpenAI-compatible so switching takes less than 30 lines.
+
+Q: "Why did you change from Tool Calling to Intent Detection?"
+A: Tool Calling requires two API round-trips (one to select tools, one to
+   generate the response). Intent Detection is instant JavaScript regex — we
+   only need one API call for the final formatting. This cuts latency in half
+   and reduces costs by ~50%. For a banking application with structured data,
+   intent detection is more predictable than asking the model to pick tools.
+
+Q: "How do you prevent the AI from making up financial data?"
+A: The AI receives a system prompt that explicitly forbids inventing numbers.
+   More importantly, we inject the real database data directly into the prompt
+   and instruct Groq to only answer using what's in the DATA section.
+   The database is the single source of truth; Groq is just a formatter.
+
+Q: "What happens if Groq is down or the API key is missing?"
+A: The groq client is null when no key is set. Every function that calls llm()
+   checks for null and returns static/database-only responses instead.
+   Module 3 (Fraud Detection) doesn't use the LLM at all — it's pure Prisma.
+   Module 2 (Insights) falls back to static insight cards.
+   The app never crashes due to AI unavailability.
+
+Q: "What model are you using and why?"
+A: llama-3.3-70b-versatile. It's Groq's recommended general-purpose model,
+   supports instruction following, handles Indian number formatting correctly,
+   and processes banking queries accurately. The "versatile" variant is
+   optimized for multi-turn conversation and structured outputs.
+
+Q: "How does conversation history work?"
+A: The last 6 messages from the frontend are included in every API call.
+   This allows follow-up questions like "What about last month?" after asking
+   about this month's spending. We cap at 6 exchanges to control token costs.
+
+Q: "What is the rate limiter for AI endpoints?"
+A: A dedicated aiLimiter of 30 requests per minute per IP is applied to
+   /api/ai/* in app.js. This matches Groq's free tier limit and also
+   prevents any runaway API cost from a bug or abuse.
+
+Q: "How would you scale this in production?"
+A: (1) Cache common queries (balance, recent txns) in Redis with 30-second TTL.
+   (2) Queue non-real-time requests (insights generation) via a job queue.
+   (3) Add streaming responses for the chat endpoint using Groq's stream API.
+   (4) Move to a paid Groq tier or switch to a self-hosted Llama deployment.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 9 — EXAMPLE CONVERSATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+User:  "Show transfers above ₹2000 this week"
+
+Code:  detectIntent("show transfers above ₹2000 this week")
+       → 'SEARCH'
+
+Code:  extractFilters("show transfers above ₹2000 this week")
+       → { minAmount: 2000, days: 7 }
+
+DB:    db.getRecentTransactions(userId, 20, { minAmount: 2000, days: 7 })
+       → [ { type: 'TRANSFER', amount: '2500.00', direction: 'SENT',
+             counterparty: 'Priya Yadav', date: '15/07/2025', ... },
+           { type: 'TRANSFER', amount: '3000.00', direction: 'SENT',
+             counterparty: 'Priya Yadav', date: '12/07/2025', ... } ]
+
+Groq:  Prompt: "DATA: [above JSON] USER QUESTION: Show transfers above ₹2000 this week"
+
+Groq:  "Here are your transfers above ₹2,000 in the past week:
+        • ₹2,500 to Priya Yadav on 15 Jul
+        • ₹3,000 to Priya Yadav on 12 Jul
+        Total: ₹5,500 across 2 transfers."
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 10 — HOW TO BUILD THIS FROM SCRATCH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. npm install groq-sdk
+
+  2. Create client:
+       const Groq  = require('groq-sdk');
+       const groq  = new Groq({ apiKey: process.env.GROQ_API_KEY });
+       const MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+
+  3. Write intent detector (keyword-based, no AI cost):
+       const detectIntent = (msg) => {
+         if (/balance/.test(msg))       return 'BALANCE';
+         if (/transaction/.test(msg))   return 'TRANSACTIONS';
+         if (/spend|expense/.test(msg)) return 'SPENDING';
+         return 'GENERAL';
+       };
+
+  4. Write DB fetchers:
+       const getBalance = (userId) => prisma.account.findMany({ where: { userId } });
+
+  5. Build the prompt with real data:
+       const prompt = `DATA:\n${JSON.stringify(dbData)}\n\nQUESTION: ${userMessage}`;
+
+  6. Call Groq:
+       const res = await groq.chat.completions.create({
+         model: MODEL,
+         messages: [
+           { role: 'system', content: 'Only answer using the DATA provided.' },
+           { role: 'user',   content: prompt }
+         ]
+       });
+       return res.choices[0].message.content;
+
+  7. Return to frontend — same JSON structure as before.
+
+  That's the complete pattern. The entire migration of a full banking AI
+  service from OpenAI tool-calling to Groq intent-detection took ~200 lines.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 11 — RECOMMENDED GROQ MODELS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  MODEL                              BEST FOR
+  ─────────────────────────────────  ─────────────────────────────────────────
+  llama-3.3-70b-versatile  ⭐ (used)  General purpose, banking queries, advice
+  llama-3.1-8b-instant               Ultra-fast, low cost, simple queries
+  moonshotai/kimi-k2-instruct        Long context, document analysis
+  openai/gpt-oss-120b               Highest quality, most expensive on Groq
+
+  To change model: update GROQ_MODEL in server/.env — no code changes needed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

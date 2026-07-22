@@ -277,6 +277,151 @@
       ]
     },
     {
+      "name": "📊 Dashboard",
+      "item": [
+        {
+          "name": "1 — Login as Deep (saves token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('accessToken',  d.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', d.refreshToken);",
+                  "pm.test('Login ok', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"deep@fincore.io\",\"password\":\"Demo@1234\"}"
+            }
+          }
+        },
+        {
+          "name": "2 — GET /api/dashboard (Deep Patel)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',                  () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has user object',         () => pm.expect(d.user).to.have.property('firstName'));",
+                  "pm.test('No passwordHash leaked',  () => pm.expect(d.user.passwordHash).to.be.undefined);",
+                  "pm.test('Has summary stats',       () => pm.expect(d.summary).to.have.all.keys('totalBalance','currency','accounts','beneficiaries','transactions'));",
+                  "pm.test('totalBalance is string',  () => pm.expect(d.summary.totalBalance).to.be.a('string'));",
+                  "pm.test('totalBalance has 2dp',    () => pm.expect(d.summary.totalBalance).to.match(/^\\d+\\.\\d{2}$/));",
+                  "pm.test('Has accounts array',      () => pm.expect(d.accounts).to.be.an('array'));",
+                  "pm.test('Has recentTransactions',  () => pm.expect(d.recentTransactions).to.be.an('array'));",
+                  "pm.test('Max 5 recent txns',       () => pm.expect(d.recentTransactions.length).to.be.at.most(5));",
+                  "if (d.recentTransactions.length) {",
+                  "  const tx = d.recentTransactions[0];",
+                  "  pm.test('Txn has direction field', () => pm.expect(tx.direction).to.be.oneOf(['SENT','RECEIVED','SELF']));",
+                  "  pm.test('Txn amount is string',    () => pm.expect(tx.amount).to.be.a('string'));",
+                  "  pm.test('Txn amount has 2dp',      () => pm.expect(tx.amount).to.match(/^\\d+\\.\\d{2}$/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "3 — Login as Priya (different user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "pm.test('Login ok', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"priya@fincore.io\",\"password\":\"Demo@1234\"}"
+            }
+          }
+        },
+        {
+          "name": "4 — GET /api/dashboard (Priya Yadav — different data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK',                () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('User is Priya',         () => pm.expect(d.user.firstName).to.equal('Priya'));",
+                  "pm.test('Data is Priya's only', () => pm.expect(d.user.email).to.include('priya'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "5 — No token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 without token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard"
+          }
+        }
+      ]
+    },
+    {
       "name": "👤 Profile",
       "item": [
         {

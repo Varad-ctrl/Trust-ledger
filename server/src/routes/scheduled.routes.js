@@ -1,0 +1,10 @@
+'use strict';
+const express = require('express');
+const router = express.Router();
+const ctrl = require('../controllers/scheduled.controller');
+const authenticate = require('../middleware/authenticate');
+router.use(authenticate);
+router.post('/', ctrl.create);
+router.get('/', ctrl.getAll);
+router.patch('/:id/cancel', ctrl.cancel);
+module.exports = router;

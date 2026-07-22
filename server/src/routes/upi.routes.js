@@ -1,0 +1,10 @@
+'use strict';
+const express = require('express');
+const router = express.Router();
+const ctrl = require('../controllers/upi.controller');
+const authenticate = require('../middleware/authenticate');
+router.use(authenticate);
+router.post('/activate', ctrl.activate);
+router.get('/me', ctrl.getMyUpiId);
+router.get('/resolve/:upiId', ctrl.resolve);
+module.exports = router;

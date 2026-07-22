@@ -10,9 +10,14 @@ const accountRepository = {
   findByIdAndUser: (id, userId) =>
     prisma.account.findFirst({ where: { id, userId } }),
 
+  findByAccountNumber: (accountNumber) =>
+    prisma.account.findUnique({
+      where: { accountNumber },
+    }),
+
   findAllByUser: (userId) =>
     prisma.account.findMany({
-      where:   { userId },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     }),
 

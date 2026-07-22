@@ -1,18 +1,12 @@
-// FinCore — Prisma Schema
-// Run: npx prisma migrate dev --name init
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ─────────────────────────────────────────
-// ENUMS
-// ─────────────────────────────────────────
 
 enum Role {
   USER
@@ -52,9 +46,24 @@ enum Currency {
   INR
 }
 
-// ─────────────────────────────────────────
-// USERS
-// ─────────────────────────────────────────
+enum ScheduledStatus {
+  PENDING
+  EXECUTED
+  FAILED
+  CANCELLED
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum StandingStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
 
 model User {
   id           String   @id @default(uuid())
@@ -65,21 +74,17 @@ model User {
   passwordHash String   @map("password_hash")
   role         Role     @default(USER)
   isVerified   Boolean  @default(false) @map("is_verified")
+  upiId        String?  @unique @map("upi_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  accounts     Account[]
-  sessions     Session[]
-  beneficiaries Beneficiary[]
-  auditLogs    AuditLog[]
-
+  accounts             Account[]
+  sessions             Session[]
+  beneficiaries        Beneficiary[]
+  auditLogs            AuditLog[]
+  scheduledTransfers   ScheduledTransfer[]
+  standingInstructions StandingInstruction[]
   @@map("users")
 }
-
-// ─────────────────────────────────────────
-// ACCOUNTS
-// ─────────────────────────────────────────
 
 model Account {
   id            String        @id @default(uuid())
@@ -87,68 +92,56 @@ model Account {
   accountNumber String        @unique @map("account_number")
   accountType   AccountType   @map("account_type")
   balance       Decimal       @default(0) @db.Decimal(18, 2)
-  currency      Currency      @default(USD)
+  currency      Currency      @default(INR)
   status        AccountStatus @default(ACTIVE)
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
-
-  // Relations
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sentTransactions  Transaction[] @relation("SenderAccount")
-  receivedTransactions Transaction[] @relation("ReceiverAccount")
-
+  user                         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentTransactions             Transaction[]         @relation("SenderAccount")
+  receivedTransactions         Transaction[]         @relation("ReceiverAccount")
+  linkedBeneficiaries          Beneficiary[]         @relation("BeneficiaryAccount")
+  scheduledTransfersSent       ScheduledTransfer[]   @relation("ScheduledSender")
+  scheduledTransfersReceived   ScheduledTransfer[]   @relation("ScheduledReceiver")
+  standingInstructionsSent     StandingInstruction[] @relation("StandingSender")
+  standingInstructionsReceived StandingInstruction[] @relation("StandingReceiver")
   @@index([userId])
   @@map("accounts")
 }
 
-// ─────────────────────────────────────────
-// TRANSACTIONS
-// ─────────────────────────────────────────
-
 model Transaction {
-  id              String            @id @default(uuid())
-  senderAccountId String?           @map("sender_account_id")
-  receiverAccountId String?         @map("receiver_account_id")
-  amount          Decimal           @db.Decimal(18, 2)
-  transactionType TransactionType   @map("transaction_type")
-  description     String?
-  status          TransactionStatus @default(PENDING)
-  referenceNumber String            @unique @map("reference_number")
-  createdAt       DateTime          @default(now()) @map("created_at")
-
-  // Relations
-  senderAccount   Account?  @relation("SenderAccount", fields: [senderAccountId], references: [id])
-  receiverAccount Account?  @relation("ReceiverAccount", fields: [receiverAccountId], references: [id])
-
+  id                String            @id @default(uuid())
+  senderAccountId   String?           @map("sender_account_id")
+  receiverAccountId String?           @map("receiver_account_id")
+  amount            Decimal           @db.Decimal(18, 2)
+  transactionType   TransactionType   @map("transaction_type")
+  description       String?
+  status            TransactionStatus @default(PENDING)
+  referenceNumber   String            @unique @map("reference_number")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  senderAccount   Account? @relation("SenderAccount",   fields: [senderAccountId],   references: [id])
+  receiverAccount Account? @relation("ReceiverAccount", fields: [receiverAccountId], references: [id])
   @@index([senderAccountId])
   @@index([receiverAccountId])
   @@index([createdAt])
   @@map("transactions")
 }
 
-// ─────────────────────────────────────────
-// BENEFICIARIES
-// ─────────────────────────────────────────
-
 model Beneficiary {
-  id              String   @id @default(uuid())
-  userId          String   @map("user_id")
-  beneficiaryName String   @map("beneficiary_name")
-  accountNumber   String   @map("account_number")
-  bankName        String   @map("bank_name")
-  ifscCode        String?  @map("ifsc_code")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  beneficiaryName   String   @map("beneficiary_name")
+  accountNumber     String   @map("account_number")
+  bankName          String   @map("bank_name")
+  ifscCode          String?  @map("ifsc_code")
+  receiverAccountId String?  @map("receiver_account_id")
+  isFavourite       Boolean  @default(false) @map("is_favourite")
+  createdAt         DateTime @default(now()) @map("created_at")
+  user            User     @relation(fields: [userId],            references: [id], onDelete: Cascade)
+  receiverAccount Account? @relation("BeneficiaryAccount", fields: [receiverAccountId], references: [id], onDelete: SetNull)
   @@index([userId])
+  @@index([receiverAccountId])
   @@map("beneficiaries")
 }
-
-// ─────────────────────────────────────────
-// SESSIONS (Refresh tokens)
-// ─────────────────────────────────────────
 
 model Session {
   id           String   @id @default(uuid())
@@ -156,18 +149,11 @@ model Session {
   refreshToken String   @unique @map("refresh_token")
   expiresAt    DateTime @map("expires_at")
   createdAt    DateTime @default(now()) @map("created_at")
-
-  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId])
   @@index([refreshToken])
   @@map("sessions")
 }
-
-// ─────────────────────────────────────────
-// AUDIT LOGS
-// ─────────────────────────────────────────
 
 model AuditLog {
   id        String   @id @default(uuid())
@@ -177,11 +163,50 @@ model AuditLog {
   userAgent String?  @map("user_agent")
   metadata  Json?
   createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model ScheduledTransfer {
+  id                String          @id @default(uuid())
+  userId            String          @map("user_id")
+  senderAccountId   String          @map("sender_account_id")
+  receiverAccountId String          @map("receiver_account_id")
+  amount            Decimal         @db.Decimal(18, 2)
+  description       String?
+  executeAt         DateTime        @map("execute_at")
+  status            ScheduledStatus @default(PENDING)
+  executedAt        DateTime?       @map("executed_at")
+  transactionId     String?         @map("transaction_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  user            User    @relation(fields: [userId],            references: [id], onDelete: Cascade)
+  senderAccount   Account @relation("ScheduledSender",  fields: [senderAccountId],   references: [id])
+  receiverAccount Account @relation("ScheduledReceiver", fields: [receiverAccountId], references: [id])
+  @@index([status, executeAt])
+  @@index([userId])
+  @@map("scheduled_transfers")
+}
+
+model StandingInstruction {
+  id                String         @id @default(uuid())
+  userId            String         @map("user_id")
+  senderAccountId   String         @map("sender_account_id")
+  receiverAccountId String         @map("receiver_account_id")
+  amount            Decimal        @db.Decimal(18, 2)
+  description       String?
+  frequency         Frequency
+  dayOfMonth        Int?           @map("day_of_month")
+  nextRunAt         DateTime       @map("next_run_at")
+  status            StandingStatus @default(ACTIVE)
+  executionCount    Int            @default(0) @map("execution_count")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  user            User    @relation(fields: [userId],            references: [id], onDelete: Cascade)
+  senderAccount   Account @relation("StandingSender",   fields: [senderAccountId],   references: [id])
+  receiverAccount Account @relation("StandingReceiver",  fields: [receiverAccountId], references: [id])
+  @@index([status, nextRunAt])
+  @@index([userId])
+  @@map("standing_instructions")
 }
