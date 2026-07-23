@@ -1,32 +1,32 @@
 name: Trust Ledger CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
+    push:
+        branches:
+            - main
 
-  workflow_dispatch:
+    workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
 
-      - name: Pipeline Started
-        run: echo "Trust Ledger CI/CD Pipeline started successfully!"
+            - name: Pipeline Started
+              run: echo "Trust Ledger CI/CD Pipeline started successfully!"
 
-      - name: Install Backend Dependencies
-        working-directory: backend
-        run: npm ci
+            - name: Install Backend Dependencies
+              working-directory: server
+              run: npm ci
 
-      - name: Install Frontend Dependencies
-        working-directory: frontend
-        run: npm ci  
+            - name: Install Frontend Dependencies
+              working-directory: client
+              run: npm ci
