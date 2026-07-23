@@ -85,3 +85,38 @@ jobs:
 
                   echo "Current Project:"
                   oc project
+
+            - name: Update Backend Image
+              run: |
+                  oc set image deployment/fincore-backend \
+                  backend=${{ secrets.DOCKERHUB_USERNAME }}/fincore-backend:latest
+
+            - name: Update Frontend Image
+              run: |
+                  oc set image deployment/fincore-frontend \
+                  frontend=${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest
+
+            - name: Wait for Backend Rollout
+              run: |
+                  oc rollout status deployment/fincore-backend --timeout=180s
+
+            - name: Wait for Frontend Rollout
+              run: |
+                  oc rollout status deployment/fincore-frontend --timeout=180s
+
+            - name: Verify Deployment
+              run: |
+                  echo "Pods:"
+                  oc get pods
+
+                  echo ""
+                  echo "Deployments:"
+                  oc get deployments
+
+                  echo ""
+                  echo "Services:"
+                  oc get svc
+
+                  echo ""
+                  echo "Routes:"
+                  oc get routes
