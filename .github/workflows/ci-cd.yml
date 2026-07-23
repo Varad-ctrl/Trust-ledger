@@ -56,3 +56,11 @@ jobs:
                   docker build \
                   -t ${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest \
                   ./client
+
+            - name: Push Server Docker Image
+              run: |
+                  docker push ${{ secrets.DOCKERHUB_USERNAME }}/fincore-backend:latest
+
+            - name: Push Client Docker Image
+              run: |
+                  docker push ${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest
