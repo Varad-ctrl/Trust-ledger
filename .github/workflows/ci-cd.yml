@@ -96,6 +96,11 @@ jobs:
                   oc set image deployment/frontend \
                   frontend=${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest
 
+            - name: Run Prisma Migrations
+              run: |
+                   echo "Running Prisma migrations..."
+                   oc exec deployment/backend -- npx prisma migrate deploy
+
             - name: Wait for Backend Rollout
               run: |
                   oc rollout status deployment/backend --timeout=180s
