@@ -64,3 +64,10 @@ jobs:
             - name: Push Client Docker Image
               run: |
                   docker push ${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest
+
+            - name: Install OpenShift CLI
+              run: |
+                  curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz
+                  tar -xzf oc.tar.gz
+                  sudo mv oc /usr/local/bin/
+                  oc version --client
