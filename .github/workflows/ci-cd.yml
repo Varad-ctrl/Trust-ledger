@@ -88,21 +88,21 @@ jobs:
 
             - name: Update Backend Image
               run: |
-                  oc set image deployment/fincore-backend \
+                  oc set image deployment/backend \
                   backend=${{ secrets.DOCKERHUB_USERNAME }}/fincore-backend:latest
 
             - name: Update Frontend Image
               run: |
-                  oc set image deployment/fincore-frontend \
+                  oc set image deployment/frontend \
                   frontend=${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest
 
             - name: Wait for Backend Rollout
               run: |
-                  oc rollout status deployment/fincore-backend --timeout=180s
+                  oc rollout status deployment/backend --timeout=180s
 
             - name: Wait for Frontend Rollout
               run: |
-                  oc rollout status deployment/fincore-frontend --timeout=180s
+                  oc rollout status deployment/frontend --timeout=180s
 
             - name: Verify Deployment
               run: |
