@@ -22,3 +22,11 @@ jobs:
 
       - name: Pipeline Started
         run: echo "Trust Ledger CI/CD Pipeline started successfully!"
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci  
