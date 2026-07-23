@@ -1,0 +1,8 @@
+name: Trust Ledger CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
