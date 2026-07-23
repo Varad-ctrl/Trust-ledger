@@ -44,3 +44,15 @@ jobs:
               with:
                   username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build Server Docker Image
+              run: |
+                  docker build \
+                  -t ${{ secrets.DOCKERHUB_USERNAME }}/fincore-backend:latest \
+                  ./server
+
+            - name: Build Client Docker Image
+              run: |
+                  docker build \
+                  -t ${{ secrets.DOCKERHUB_USERNAME }}/fincore-frontend:latest \
+                  ./client
