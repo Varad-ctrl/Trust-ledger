@@ -30,3 +30,11 @@ jobs:
             - name: Install Frontend Dependencies
               working-directory: client
               run: npm ci
+
+            - name: Build Client
+              working-directory: client
+              run: npm run build
+
+            - name: Verify Server
+              working-directory: server
+              run: node --check src/server.js
