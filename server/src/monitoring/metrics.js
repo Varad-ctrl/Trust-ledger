@@ -30,10 +30,19 @@ const activeRequests = new client.Gauge({
   registers: [register],
 });
 
+// Total database queries
+const dbQueryCounter = new client.Counter({
+  name: "database_queries_total",
+  help: "Total number of database queries",
+  labelNames: ["operation", "status"],
+  registers: [register],
+});
+
 module.exports = {
   client,
   register,
   httpRequestCounter,
   httpRequestDuration,
   activeRequests,
+  dbQueryCounter,
 };
