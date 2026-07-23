@@ -23,9 +23,17 @@ const httpRequestDuration = new client.Histogram({
   registers: [register],
 });
 
+// Active HTTP requests
+const activeRequests = new client.Gauge({
+  name: "active_http_requests",
+  help: "Number of active HTTP requests",
+  registers: [register],
+});
+
 module.exports = {
   client,
   register,
   httpRequestCounter,
   httpRequestDuration,
+  activeRequests,
 };

@@ -1,9 +1,13 @@
 const {
     httpRequestCounter,
     httpRequestDuration,
+    activeRequests,
 } = require("../monitoring/metrics");
 
 module.exports = (req, res, next) => {
+    // Increase active requests
+    activeRequests.inc();
+
     const end = httpRequestDuration.startTimer();
 
     res.on("finish", () => {
@@ -16,6 +20,9 @@ module.exports = (req, res, next) => {
         httpRequestCounter.inc(labels);
 
         end(labels);
+
+        // Decrease active requests
+        activeRequests.dec();
     });
 
     next();
