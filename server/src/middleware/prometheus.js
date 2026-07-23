@@ -1,13 +1,22 @@
-const { httpRequestCounter } = require("../monitoring/metrics");
+const {
+    httpRequestCounter,
+    httpRequestDuration,
+} = require("../monitoring/metrics");
 
 module.exports = (req, res, next) => {
-  res.on("finish", () => {
-    httpRequestCounter.inc({
-      method: req.method,
-      route: req.route?.path || req.path,
-      status_code: res.statusCode,
-    });
-  });
+    const end = httpRequestDuration.startTimer();
 
-  next();
+    res.on("finish", () => {
+        const labels = {
+            method: req.method,
+            route: req.route?.path || req.path,
+            status_code: res.statusCode,
+        };
+
+        httpRequestCounter.inc(labels);
+
+        end(labels);
+    });
+
+    next();
 };
